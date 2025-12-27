@@ -2,18 +2,22 @@ import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { ArticleListCard } from '@/components/articles/ArticleListCard';
+import { SettingsModal } from '@/components/profile/SettingsModal';
+import { PremiumModal } from '@/components/profile/PremiumModal';
+import { UserArticlesModal } from '@/components/profile/UserArticlesModal';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings, Crown, FileText, Bookmark, History, Star } from 'lucide-react';
 import { currentUser, mockArticles } from '@/data/mockData';
-import { cn } from '@/lib/utils';
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState('articles');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPremiumOpen, setIsPremiumOpen] = useState(false);
+  const [isArticlesOpen, setIsArticlesOpen] = useState(false);
 
-  // Mock user articles and favorites
-  const userArticles = mockArticles.filter((a) => a.author.id === currentUser.id);
-  const favoriteArticles = mockArticles.slice(0, 3); // Mock favorites
+  const userArticles = mockArticles.filter((a) => a.author_id === currentUser.id);
+  const favoriteArticles = mockArticles.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-background pb-24 pt-16">
@@ -45,24 +49,30 @@ export default function Profile() {
                   <Star className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">{currentUser.reputation} rep</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setIsArticlesOpen(true)}
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground hover:text-primary">
                     {currentUser.articles_count} статей
                   </span>
-                </div>
+                </button>
               </div>
             </div>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)}>
               <Settings className="h-5 w-5" />
             </Button>
           </div>
         </section>
 
-        {/* Premium Banner (if not premium) */}
+        {/* Premium Banner */}
         {!currentUser.is_premium && (
           <section className="mb-6 px-4">
-            <div className="rounded-2xl bg-gradient-to-r from-card to-card-foreground/5 p-4">
+            <button
+              onClick={() => setIsPremiumOpen(true)}
+              className="w-full rounded-2xl bg-gradient-to-r from-card to-card-foreground/5 p-4 text-left transition-all hover:from-card/80"
+            >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                   <Crown className="h-5 w-5 text-primary" />
@@ -73,9 +83,8 @@ export default function Profile() {
                     Безлимитные публикации и приоритетная модерация
                   </p>
                 </div>
-                <Button size="sm">Подробнее</Button>
               </div>
-            </div>
+            </button>
           </section>
         )}
 
@@ -99,10 +108,17 @@ export default function Profile() {
 
             <TabsContent value="articles">
               <div className="rounded-2xl bg-card p-4">
-                <h2 className="mb-4 font-heading text-lg font-semibold">Мои статьи</h2>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-heading text-lg font-semibold">Мои статьи</h2>
+                  {userArticles.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => setIsArticlesOpen(true)}>
+                      Все
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-3">
                   {userArticles.length > 0 ? (
-                    userArticles.map((article, index) => (
+                    userArticles.slice(0, 3).map((article, index) => (
                       <ArticleListCard
                         key={article.id}
                         article={article}
@@ -123,20 +139,14 @@ export default function Profile() {
               <div className="rounded-2xl bg-card p-4">
                 <h2 className="mb-4 font-heading text-lg font-semibold">Избранное</h2>
                 <div className="space-y-3">
-                  {favoriteArticles.length > 0 ? (
-                    favoriteArticles.map((article, index) => (
-                      <ArticleListCard
-                        key={article.id}
-                        article={article}
-                        className="animate-slide-up"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                      />
-                    ))
-                  ) : (
-                    <p className="py-8 text-center text-muted-foreground">
-                      Нет избранных статей
-                    </p>
-                  )}
+                  {favoriteArticles.map((article, index) => (
+                    <ArticleListCard
+                      key={article.id}
+                      article={article}
+                      className="animate-slide-up"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    />
+                  ))}
                 </div>
               </div>
             </TabsContent>
@@ -144,11 +154,7 @@ export default function Profile() {
             <TabsContent value="activity">
               <div className="rounded-2xl bg-card p-4">
                 <h2 className="mb-4 font-heading text-lg font-semibold">История активности</h2>
-                <div className="space-y-3">
-                  <p className="py-8 text-center text-muted-foreground">
-                    История пуста
-                  </p>
-                </div>
+                <p className="py-8 text-center text-muted-foreground">История пуста</p>
               </div>
             </TabsContent>
           </Tabs>
@@ -156,6 +162,14 @@ export default function Profile() {
       </main>
 
       <BottomNav />
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <PremiumModal isOpen={isPremiumOpen} onClose={() => setIsPremiumOpen(false)} />
+      <UserArticlesModal
+        isOpen={isArticlesOpen}
+        onClose={() => setIsArticlesOpen(false)}
+        articles={userArticles}
+      />
     </div>
   );
 }

@@ -253,4 +253,8 @@ export const mockPodcasts: Podcast[] = [
   },
 ];
 
-export const currentUser: User = mockUsers[0];
+// Create a non-premium version of the user for testing
+export const currentUser: User = {
+  ...mockUsers[0],
+  is_premium: false,
+};

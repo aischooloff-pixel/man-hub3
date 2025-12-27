@@ -18,7 +18,10 @@ import { Category } from '@/types';
 export default function Index() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
-  const featuredArticles = mockArticles.slice(0, 4);
+  // Sort by likes descending for "Популярное"
+  const featuredArticles = [...mockArticles]
+    .sort((a, b) => b.likes_count - a.likes_count)
+    .slice(0, 4);
   const latestArticles = mockArticles.slice(2);
 
   const filteredArticles = selectedCategory

@@ -14,12 +14,13 @@ export function PodcastCard({ podcast, onPlay, className, style }: PodcastCardPr
   return (
     <div
       className={cn(
-        'group relative flex w-[180px] flex-shrink-0 flex-col overflow-hidden rounded-xl bg-secondary/50 transition-smooth hover:bg-secondary',
+        'group relative flex w-[280px] flex-shrink-0 flex-col overflow-hidden rounded-xl bg-secondary/50 transition-smooth hover:bg-secondary',
         className
       )}
       style={style}
     >
-      <div className="relative aspect-square overflow-hidden rounded-t-xl">
+      {/* 16:9 aspect ratio for full YouTube thumbnail */}
+      <div className="relative aspect-video overflow-hidden rounded-t-xl">
         <img
           src={podcast.thumbnail_url}
           alt={podcast.title}
@@ -31,22 +32,25 @@ export function PodcastCard({ podcast, onPlay, className, style }: PodcastCardPr
         <div className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 transition-opacity group-hover:opacity-100">
           <Button
             size="icon"
-            className="h-10 w-10 rounded-full shadow-elevated"
+            className="h-12 w-12 rounded-full shadow-elevated"
             onClick={() => onPlay(podcast)}
           >
-            <Play className="h-4 w-4 fill-current" />
+            <Play className="h-5 w-5 fill-current" />
           </Button>
         </div>
-        <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] backdrop-blur-sm">
-          <Clock className="h-2.5 w-2.5" />
+        <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 text-xs backdrop-blur-sm">
+          <Clock className="h-3 w-3" />
           <span>{podcast.duration}</span>
         </div>
       </div>
 
-      <div className="p-2.5">
-        <h3 className="line-clamp-2 text-xs font-medium leading-tight">
+      <div className="p-3">
+        <h3 className="mb-1 line-clamp-2 text-sm font-medium leading-tight">
           {podcast.title}
         </h3>
+        <p className="line-clamp-2 text-xs text-muted-foreground">
+          {podcast.description}
+        </p>
       </div>
     </div>
   );
