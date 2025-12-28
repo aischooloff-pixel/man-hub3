@@ -103,6 +103,18 @@ export default function Hub() {
   };
 
   return (
+    profile?.is_blocked ? (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background">
+        <div className="text-center p-8">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-destructive/20 flex items-center justify-center">
+            <span className="text-4xl">🚫</span>
+          </div>
+          <h1 className="text-2xl font-bold text-destructive mb-4">Аккаунт заблокирован</h1>
+          <p className="text-muted-foreground mb-2">Вы не можете использовать BoysHub.</p>
+          <p className="text-sm text-muted-foreground">Если вы считаете, что это ошибка, обратитесь в поддержку.</p>
+        </div>
+      </div>
+    ) : (
     <div className="min-h-screen bg-background pb-24 pt-16">
       <Header />
 

@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-const USERS_PER_PAGE = 10;
+const USERS_PER_PAGE = 20;
 const ARTICLES_PER_PAGE = 10;
 
 // Send message via Admin Bot
@@ -252,22 +252,22 @@ async function handleUsers(chatId: number, userId: number, page: number = 0, mes
   const userButtons: any[][] = [];
   if (users) {
     for (const user of users) {
-      const username = user.username ? `@${user.username}` : `${user.telegram_id}`;
-      userButtons.push([{ text: `👤 ${username}`, callback_data: `user:${user.telegram_id}` }]);
+      const label = user.username ? `@${user.username}` : `${user.telegram_id}`;
+      userButtons.push([{ text: `👤 ${label}`, callback_data: `user:${user.telegram_id}` }]);
     }
   }
 
-  // Pagination buttons
-  const navButtons: any[] = [];
-  if (page > 0) {
-    navButtons.push({ text: '⬅️ Назад', callback_data: `users:${page - 1}` });
-  }
-  if (page < totalPages - 1) {
-    navButtons.push({ text: 'Вперёд ➡️', callback_data: `users:${page + 1}` });
-  }
+  // Pagination buttons (всегда 2 кнопки, чтобы сообщение "перелистывалось")
+  const prevPage = page > 0 ? page - 1 : page;
+  const nextPage = page < totalPages - 1 ? page + 1 : page;
+
+  const navRow = [
+    { text: '⬅️ Назад', callback_data: `users:${prevPage}` },
+    { text: 'Вперёд ➡️', callback_data: `users:${nextPage}` },
+  ];
 
   const keyboard = {
-    inline_keyboard: [...userButtons, ...(navButtons.length > 0 ? [navButtons] : [])],
+    inline_keyboard: [...userButtons, navRow],
   };
 
   if (messageId) {
@@ -870,12 +870,13 @@ async function handleArticles(chatId: number, userId: number, page: number = 0, 
 
   message += `\n🔍 Поиск: <code>/search_st запрос</code>`;
 
-  // Create article buttons
+  // Create article buttons (используем short_id из moderation_short_ids)
   const articleButtons: any[][] = [];
   if (articles) {
     for (const article of articles) {
+      const shortId = await getOrCreateShortId(article.id);
       const shortTitle = article.title.length > 25 ? article.title.substring(0, 25) + '...' : article.title;
-      articleButtons.push([{ text: `📄 ${shortTitle}`, callback_data: `article:${article.id.substring(0, 8)}` }]);
+      articleButtons.push([{ text: `📄 ${shortTitle}`, callback_data: `article:${shortId}` }]);
     }
   }
 
@@ -903,16 +904,17 @@ async function handleArticles(chatId: number, userId: number, page: number = 0, 
 async function handleViewArticle(callbackQuery: any, articleShortId: string) {
   const { id, message } = callbackQuery;
 
-  const { data: article, error } = await supabase
-    .from('articles')
-    .select('id, title, preview, body, created_at, status, author:author_id(username, telegram_id, first_name)')
-    .ilike('id', `${articleShortId}%`)
-    .maybeSingle();
-
-  if (error || !article) {
+  const articleId = await getArticleIdByShortId(articleShortId);
+  if (!articleId) {
     await answerCallbackQuery(id, '❌ Статья не найдена');
     return;
   }
+
+  const { data: article, error } = await supabase
+    .from('articles')
+    .select('id, title, preview, body, created_at, status, author:author_id(username, telegram_id, first_name)')
+    .eq('id', articleId)
+    .maybeSingle();
 
   const authorData = article.author as any;
   const authorDisplay = authorData?.username ? `@${authorData.username}` : `ID:${authorData?.telegram_id || 'N/A'}`;
@@ -943,16 +945,17 @@ ${article.preview || article.body?.substring(0, 300) || 'Нет превью'}..
 async function handleDeleteArticle(callbackQuery: any, articleShortId: string) {
   const { id, message } = callbackQuery;
 
-  const { data: article, error: findError } = await supabase
-    .from('articles')
-    .select('id, title, author:author_id(telegram_id)')
-    .ilike('id', `${articleShortId}%`)
-    .maybeSingle();
-
-  if (findError || !article) {
+  const articleId = await getArticleIdByShortId(articleShortId);
+  if (!articleId) {
     await answerCallbackQuery(id, '❌ Статья не найдена');
     return;
   }
+
+  const { data: article, error: findError } = await supabase
+    .from('articles')
+    .select('id, title, author:author_id(telegram_id)')
+    .eq('id', articleId)
+    .maybeSingle();
 
   const { error } = await supabase
     .from('articles')

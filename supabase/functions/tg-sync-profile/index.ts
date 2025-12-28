@@ -153,7 +153,8 @@ Deno.serve(async (req) => {
       first_name: tgUser.first_name || 'User',
       last_name: tgUser.last_name || null,
       avatar_url: tgUser.photo_url || null,
-      is_premium: tgUser.is_premium || false,
+      // ВАЖНО: не перезаписываем is_premium из Telegram (это Telegram Premium),
+      // чтобы Premium из админки приложения не сбрасывался при синке.
       updated_at: new Date().toISOString(),
     };
 
