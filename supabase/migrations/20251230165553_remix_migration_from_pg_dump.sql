@@ -1,8 +1,8 @@
-CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
+CREATE EXTENSION IF NOT EXISTS "pg_graphql";
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
-CREATE EXTENSION IF NOT EXISTS "plpgsql" WITH SCHEMA "pg_catalog";
-CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
+CREATE EXTENSION IF NOT EXISTS "plpgsql";
+CREATE EXTENSION IF NOT EXISTS "supabase_vault";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 BEGIN;
 
@@ -144,6 +144,59 @@ CREATE TABLE public.admin_settings (
 
 
 --
+-- Name: article_comments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.article_comments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    article_id uuid NOT NULL,
+    author_id uuid NOT NULL,
+    body text NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: article_favorites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.article_favorites (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    article_id uuid NOT NULL,
+    user_profile_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: article_likes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.article_likes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    article_id uuid NOT NULL,
+    user_profile_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: article_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.article_reports (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    article_id uuid NOT NULL,
+    reporter_profile_id uuid NOT NULL,
+    reason text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    reviewed_at timestamp with time zone,
+    reviewed_by_telegram_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: articles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -167,6 +220,10 @@ CREATE TABLE public.articles (
     telegram_message_id bigint,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    topic text,
+    sources text[],
+    pending_edit jsonb,
+    edited_at timestamp with time zone,
     CONSTRAINT articles_media_type_check CHECK ((media_type = ANY (ARRAY['image'::text, 'youtube'::text]))),
     CONSTRAINT articles_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'pending'::text, 'approved'::text, 'rejected'::text])))
 );
@@ -201,6 +258,22 @@ CREATE TABLE public.moderation_short_ids (
 
 
 --
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_profile_id uuid NOT NULL,
+    type text NOT NULL,
+    message text NOT NULL,
+    article_id uuid,
+    from_user_id uuid,
+    is_read boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: pending_rejections; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -210,6 +283,40 @@ CREATE TABLE public.pending_rejections (
     article_id uuid NOT NULL,
     short_id character varying(8) NOT NULL,
     created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: playlists; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.playlists (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    service text NOT NULL,
+    category text NOT NULL,
+    title text NOT NULL,
+    url text NOT NULL,
+    cover_urls text[] DEFAULT '{}'::text[],
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT playlists_category_check CHECK ((category = ANY (ARRAY['motivation'::text, 'workout'::text, 'self-development'::text]))),
+    CONSTRAINT playlists_service_check CHECK ((service = ANY (ARRAY['spotify'::text, 'soundcloud'::text, 'yandex'::text])))
+);
+
+
+--
+-- Name: podcasts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.podcasts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    youtube_url text NOT NULL,
+    youtube_id text NOT NULL,
+    title text NOT NULL,
+    description text,
+    thumbnail_url text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
 );
 
 
@@ -233,7 +340,10 @@ CREATE TABLE public.profiles (
     updated_at timestamp with time zone DEFAULT now(),
     show_avatar boolean DEFAULT true NOT NULL,
     show_name boolean DEFAULT true NOT NULL,
-    show_username boolean DEFAULT true NOT NULL
+    show_username boolean DEFAULT true NOT NULL,
+    premium_expires_at timestamp with time zone,
+    is_blocked boolean DEFAULT false NOT NULL,
+    blocked_at timestamp with time zone
 );
 
 
@@ -299,6 +409,54 @@ ALTER TABLE ONLY public.admin_settings
 
 
 --
+-- Name: article_comments article_comments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_comments
+    ADD CONSTRAINT article_comments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: article_favorites article_favorites_article_id_user_profile_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_favorites
+    ADD CONSTRAINT article_favorites_article_id_user_profile_id_key UNIQUE (article_id, user_profile_id);
+
+
+--
+-- Name: article_favorites article_favorites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_favorites
+    ADD CONSTRAINT article_favorites_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: article_likes article_likes_article_id_user_profile_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_likes
+    ADD CONSTRAINT article_likes_article_id_user_profile_id_key UNIQUE (article_id, user_profile_id);
+
+
+--
+-- Name: article_likes article_likes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_likes
+    ADD CONSTRAINT article_likes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: article_reports article_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_reports
+    ADD CONSTRAINT article_reports_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: articles articles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -331,11 +489,35 @@ ALTER TABLE ONLY public.moderation_short_ids
 
 
 --
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: pending_rejections pending_rejections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.pending_rejections
     ADD CONSTRAINT pending_rejections_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: playlists playlists_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.playlists
+    ADD CONSTRAINT playlists_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: podcasts podcasts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.podcasts
+    ADD CONSTRAINT podcasts_pkey PRIMARY KEY (id);
 
 
 --
@@ -387,6 +569,55 @@ ALTER TABLE ONLY public.user_roles
 
 
 --
+-- Name: idx_article_comments_article; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_article_comments_article ON public.article_comments USING btree (article_id);
+
+
+--
+-- Name: idx_article_favorites_article; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_article_favorites_article ON public.article_favorites USING btree (article_id);
+
+
+--
+-- Name: idx_article_favorites_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_article_favorites_user ON public.article_favorites USING btree (user_profile_id);
+
+
+--
+-- Name: idx_article_likes_article; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_article_likes_article ON public.article_likes USING btree (article_id);
+
+
+--
+-- Name: idx_article_likes_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_article_likes_user ON public.article_likes USING btree (user_profile_id);
+
+
+--
+-- Name: idx_article_reports_article_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_article_reports_article_id ON public.article_reports USING btree (article_id);
+
+
+--
+-- Name: idx_article_reports_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_article_reports_status ON public.article_reports USING btree (status);
+
+
+--
 -- Name: idx_moderation_logs_article; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -408,10 +639,31 @@ CREATE INDEX idx_moderation_short_ids_short_id ON public.moderation_short_ids US
 
 
 --
+-- Name: idx_notifications_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_created_at ON public.notifications USING btree (created_at DESC);
+
+
+--
+-- Name: idx_notifications_user_profile_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_user_profile_id ON public.notifications USING btree (user_profile_id);
+
+
+--
 -- Name: idx_pending_rejections_admin; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_pending_rejections_admin ON public.pending_rejections USING btree (admin_telegram_id);
+
+
+--
+-- Name: idx_profiles_is_blocked; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_profiles_is_blocked ON public.profiles USING btree (is_blocked);
 
 
 --
@@ -422,10 +674,88 @@ CREATE TRIGGER update_articles_updated_at BEFORE UPDATE ON public.articles FOR E
 
 
 --
+-- Name: playlists update_playlists_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_playlists_updated_at BEFORE UPDATE ON public.playlists FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: podcasts update_podcasts_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_podcasts_updated_at BEFORE UPDATE ON public.podcasts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
 -- Name: profiles update_profiles_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: article_comments article_comments_article_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_comments
+    ADD CONSTRAINT article_comments_article_id_fkey FOREIGN KEY (article_id) REFERENCES public.articles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: article_comments article_comments_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_comments
+    ADD CONSTRAINT article_comments_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: article_favorites article_favorites_article_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_favorites
+    ADD CONSTRAINT article_favorites_article_id_fkey FOREIGN KEY (article_id) REFERENCES public.articles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: article_favorites article_favorites_user_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_favorites
+    ADD CONSTRAINT article_favorites_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: article_likes article_likes_article_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_likes
+    ADD CONSTRAINT article_likes_article_id_fkey FOREIGN KEY (article_id) REFERENCES public.articles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: article_likes article_likes_user_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_likes
+    ADD CONSTRAINT article_likes_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: article_reports article_reports_article_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_reports
+    ADD CONSTRAINT article_reports_article_id_fkey FOREIGN KEY (article_id) REFERENCES public.articles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: article_reports article_reports_reporter_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.article_reports
+    ADD CONSTRAINT article_reports_reporter_profile_id_fkey FOREIGN KEY (reporter_profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 
 
 --
@@ -450,6 +780,30 @@ ALTER TABLE ONLY public.moderation_logs
 
 ALTER TABLE ONLY public.moderation_short_ids
     ADD CONSTRAINT moderation_short_ids_article_id_fkey FOREIGN KEY (article_id) REFERENCES public.articles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: notifications notifications_article_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_article_id_fkey FOREIGN KEY (article_id) REFERENCES public.articles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: notifications notifications_from_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_from_user_id_fkey FOREIGN KEY (from_user_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: notifications notifications_user_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 
 
 --
@@ -537,6 +891,27 @@ CREATE POLICY "Approved articles are viewable by everyone" ON public.articles FO
 
 
 --
+-- Name: article_comments Comments are viewable by everyone; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Comments are viewable by everyone" ON public.article_comments FOR SELECT USING (true);
+
+
+--
+-- Name: article_favorites Favorites are viewable by everyone; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Favorites are viewable by everyone" ON public.article_favorites FOR SELECT USING (true);
+
+
+--
+-- Name: article_likes Likes are viewable by everyone; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Likes are viewable by everyone" ON public.article_likes FOR SELECT USING (true);
+
+
+--
 -- Name: admin_settings Only admins can access settings; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -544,10 +919,31 @@ CREATE POLICY "Only admins can access settings" ON public.admin_settings USING (
 
 
 --
+-- Name: playlists Playlists are viewable by everyone; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Playlists are viewable by everyone" ON public.playlists FOR SELECT USING (true);
+
+
+--
+-- Name: podcasts Podcasts are viewable by everyone; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Podcasts are viewable by everyone" ON public.podcasts FOR SELECT USING (true);
+
+
+--
 -- Name: profiles Profiles are viewable by everyone; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+
+
+--
+-- Name: articles Service role can delete articles; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can delete articles" ON public.articles FOR DELETE USING (true);
 
 
 --
@@ -562,6 +958,55 @@ CREATE POLICY "Service role can insert articles" ON public.articles FOR INSERT T
 --
 
 CREATE POLICY "Service role can insert profiles" ON public.profiles FOR INSERT TO service_role WITH CHECK (true);
+
+
+--
+-- Name: article_comments Service role can manage comments; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can manage comments" ON public.article_comments USING (true) WITH CHECK (true);
+
+
+--
+-- Name: article_favorites Service role can manage favorites; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can manage favorites" ON public.article_favorites USING (true) WITH CHECK (true);
+
+
+--
+-- Name: article_likes Service role can manage likes; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can manage likes" ON public.article_likes USING (true) WITH CHECK (true);
+
+
+--
+-- Name: notifications Service role can manage notifications; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can manage notifications" ON public.notifications USING (true) WITH CHECK (true);
+
+
+--
+-- Name: playlists Service role can manage playlists; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can manage playlists" ON public.playlists USING (true) WITH CHECK (true);
+
+
+--
+-- Name: podcasts Service role can manage podcasts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can manage podcasts" ON public.podcasts USING (true) WITH CHECK (true);
+
+
+--
+-- Name: article_reports Service role can manage reports; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role can manage reports" ON public.article_reports USING (true) WITH CHECK (true);
 
 
 --
@@ -614,6 +1059,13 @@ CREATE POLICY "Service role only" ON public.support_questions USING (false) WITH
 
 
 --
+-- Name: notifications Users can view own notifications; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (true);
+
+
+--
 -- Name: user_roles Users can view own roles; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -621,10 +1073,43 @@ CREATE POLICY "Users can view own roles" ON public.user_roles FOR SELECT USING (
 
 
 --
+-- Name: article_reports Users can view their own reports; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own reports" ON public.article_reports FOR SELECT USING ((reporter_profile_id IN ( SELECT profiles.id
+   FROM public.profiles
+  WHERE (profiles.telegram_id IS NOT NULL))));
+
+
+--
 -- Name: admin_settings; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: article_comments; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.article_comments ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: article_favorites; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.article_favorites ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: article_likes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.article_likes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: article_reports; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.article_reports ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: articles; Type: ROW SECURITY; Schema: public; Owner: -
@@ -645,10 +1130,28 @@ ALTER TABLE public.moderation_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.moderation_short_ids ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: notifications; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: pending_rejections; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.pending_rejections ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: playlists; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: podcasts; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.podcasts ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: profiles; Type: ROW SECURITY; Schema: public; Owner: -
