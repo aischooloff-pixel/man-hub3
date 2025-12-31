@@ -843,6 +843,7 @@ export type Database = {
           moderated_by_telegram_id: number | null
           price: number
           rejection_reason: string | null
+          short_code: string | null
           status: string
           title: string
           updated_at: string
@@ -861,6 +862,7 @@ export type Database = {
           moderated_by_telegram_id?: number | null
           price: number
           rejection_reason?: string | null
+          short_code?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -879,6 +881,7 @@ export type Database = {
           moderated_by_telegram_id?: number | null
           price?: number
           rejection_reason?: string | null
+          short_code?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -971,6 +974,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_product_code: { Args: never; Returns: string }
       generate_short_id: { Args: never; Returns: string }
       get_or_create_short_id: {
         Args: { p_article_id: string }

@@ -158,8 +158,9 @@ async function handleStart(chatId: number, userId: number) {
 /pr — Список промокодов
 /pr_add [КОД] [скидка%] — Создать промокод
 
-<b>Поиск статей:</b>
-/search_st [запрос] — Поиск по заголовку
+<b>Поиск:</b>
+/search_st [запрос] — Поиск статей по заголовку
+/search_product [код] — Поиск продукта по коду
 
 <i>Уведомления о новых статьях и вопросах приходят автоматически.</i>`;
 
@@ -317,13 +318,25 @@ async function handleUserProfile(callbackQuery: any, telegramId: string) {
     ? `\n📅 Подписка до: ${new Date(user.premium_expires_at).toLocaleDateString('ru-RU')}`
     : '';
 
+  // Check if user has a product
+  const { data: products } = await supabase
+    .from('user_products')
+    .select('id, title, status, short_code')
+    .eq('user_profile_id', user.id)
+    .limit(1);
+  
+  const hasProduct = products && products.length > 0;
+  const productInfo = hasProduct 
+    ? `\n📦 <b>Продукт:</b> ✅ ${products[0].title} (${products[0].status === 'approved' ? '✅' : products[0].status === 'pending' ? '⏳' : '❌'})\n🏷 <b>Код:</b> <code>${products[0].short_code || 'N/A'}</code>`
+    : '\n📦 <b>Продукт:</b> ❌ Нет';
+
   const profileMessage = `👤 <b>Профиль пользователя</b>${blocked}
 
 📛 <b>Имя:</b> ${user.first_name || ''} ${user.last_name || ''}
 🔗 <b>Username:</b> ${user.username ? `@${user.username}` : 'Не указан'}
 🆔 <b>Telegram ID:</b> ${user.telegram_id}
 ⭐ <b>Репутация:</b> ${user.reputation || 0}
-📊 <b>Подписка:</b> ${tierLabel}${premiumExpiry}
+📊 <b>Подписка:</b> ${tierLabel}${premiumExpiry}${productInfo}
 📅 <b>Регистрация:</b> ${new Date(user.created_at).toLocaleDateString('ru-RU')}`;
 
   // Build action buttons
@@ -410,13 +423,25 @@ async function handleSearch(chatId: number, userId: number, query: string) {
       ? `\n📅 Premium до: ${new Date(user.premium_expires_at).toLocaleDateString('ru-RU')}`
       : '';
 
+    // Check if user has a product
+    const { data: products } = await supabase
+      .from('user_products')
+      .select('id, title, status, short_code')
+      .eq('user_profile_id', user.id)
+      .limit(1);
+    
+    const hasProduct = products && products.length > 0;
+    const productInfo = hasProduct 
+      ? `\n📦 <b>Продукт:</b> ✅ ${products[0].title} (${products[0].status === 'approved' ? '✅' : products[0].status === 'pending' ? '⏳' : '❌'})\n🏷 <b>Код:</b> <code>${products[0].short_code || 'N/A'}</code>`
+      : '\n📦 <b>Продукт:</b> ❌ Нет';
+
     const message = `👤 <b>Профиль пользователя</b>${blocked}
 
 📛 <b>Имя:</b> ${user.first_name || ''} ${user.last_name || ''}
 🔗 <b>Username:</b> ${user.username ? `@${user.username}` : 'Не указан'}
 🆔 <b>Telegram ID:</b> ${user.telegram_id}
 ⭐ <b>Репутация:</b> ${user.reputation || 0}
-📊 <b>Статус:</b> ${premium}${premiumExpiry}
+📊 <b>Статус:</b> ${premium}${premiumExpiry}${productInfo}
 📅 <b>Регистрация:</b> ${new Date(user.created_at).toLocaleDateString('ru-RU')}`;
 
     // Build action buttons
@@ -439,6 +464,73 @@ async function handleSearch(chatId: number, userId: number, query: string) {
 
     await sendAdminMessage(chatId, message, { reply_markup: keyboard });
   }
+}
+
+// Handle /search_product command - search product by short code
+async function handleSearchProduct(chatId: number, userId: number, query: string) {
+  if (!isAdmin(userId)) return;
+
+  if (!query) {
+    await sendAdminMessage(chatId, `🔍 <b>Поиск продукта</b>
+
+Используйте:
+<code>/search_product КОД</code> — поиск по уникальному коду продукта
+
+Пример:
+<code>/search_product AB12CD34</code>`);
+    return;
+  }
+
+  const cleanQuery = query.trim().toUpperCase();
+
+  const { data: product, error } = await supabase
+    .from('user_products')
+    .select(`
+      *,
+      user:user_profile_id(telegram_id, username, first_name)
+    `)
+    .eq('short_code', cleanQuery)
+    .maybeSingle();
+
+  if (error || !product) {
+    await sendAdminMessage(chatId, `🔍 Продукт с кодом "<b>${query}</b>" не найден`);
+    return;
+  }
+
+  const user = product.user as any;
+  const statusIcon = product.status === 'pending' ? '⏳' : product.status === 'approved' ? '✅' : '❌';
+  const statusText = product.status === 'pending' ? 'На модерации' : product.status === 'approved' ? 'Одобрен' : 'Отклонён';
+  const userDisplay = user?.username ? '@' + user.username : user?.first_name || `ID:${user?.telegram_id}`;
+
+  const message = `📦 <b>Продукт</b>
+
+🏷 <b>Код:</b> <code>${product.short_code}</code>
+📛 <b>Название:</b> ${product.title}
+💰 <b>Цена:</b> ${product.price} ${product.currency}
+
+📝 <b>Описание:</b>
+${product.description?.substring(0, 300) || 'Нет описания'}${product.description?.length > 300 ? '...' : ''}
+
+${product.media_url ? `🎬 <b>Медиа:</b> ${product.media_url}` : ''}
+${product.link ? `🔗 <b>Ссылка:</b> ${product.link}` : ''}
+
+👤 <b>Владелец:</b> ${userDisplay}
+${statusIcon} <b>Статус:</b> ${statusText}
+${product.rejection_reason ? `❌ <b>Причина отклонения:</b> ${product.rejection_reason}` : ''}
+📅 <b>Создан:</b> ${new Date(product.created_at).toLocaleDateString('ru-RU')}`;
+
+  const buttons: any[][] = [];
+  
+  if (product.status === 'pending') {
+    buttons.push([
+      { text: '✅ Одобрить', callback_data: `product_approve:${product.id}` },
+      { text: '❌ Отклонить', callback_data: `product_reject:${product.id}` },
+    ]);
+  }
+
+  const keyboard = { inline_keyboard: buttons };
+
+  await sendAdminMessage(chatId, message, { reply_markup: keyboard });
 }
 
 // Handle /premium command
@@ -3977,6 +4069,11 @@ Deno.serve(async (req) => {
         await handleUserReports(chat.id, from.id);
       } else if (text === '/product') {
         await handleProducts(chat.id, from.id);
+      } else if (text?.startsWith('/search_product ')) {
+        const query = text.replace('/search_product ', '').trim();
+        await handleSearchProduct(chat.id, from.id, query);
+      } else if (text === '/search_product') {
+        await handleSearchProduct(chat.id, from.id, '');
       } else if (text === '/help') {
         await handleStart(chat.id, from.id);
       } else {

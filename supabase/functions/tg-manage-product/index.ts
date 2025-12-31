@@ -17,6 +17,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 async function sendProductModerationNotification(product: any, profile: any) {
   const message = `📦 <b>Новый продукт на модерации</b>
 
+🏷 <b>Код:</b> <code>${product.short_code || 'N/A'}</code>
 📛 <b>Название:</b> ${product.title}
 💰 <b>Цена:</b> ${product.price} ${product.currency || 'RUB'}
 

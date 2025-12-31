@@ -395,14 +395,7 @@ export function ProductsModal({ isOpen, onClose, userProfileId }: ProductsModalP
                 </div>
               </div>
 
-              <div>
-                <label className="text-sm text-muted-foreground">Ссылка на покупку</label>
-                <Input
-                  value={formData.link}
-                  onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                  placeholder="https://..."
-                />
-              </div>
+              {/* Link field removed - products go to moderation */}
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={resetForm}>

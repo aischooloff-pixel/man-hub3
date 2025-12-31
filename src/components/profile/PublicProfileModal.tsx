@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArticleDetailModal } from '@/components/articles/ArticleDetailModal';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useTelegram } from '@/hooks/use-telegram';
@@ -501,61 +501,77 @@ export function PublicProfileModal({ isOpen, onClose, authorId }: PublicProfileM
                       Продукт
                     </h3>
                     {products.map((product) => (
-                      <div key={product.id} className="rounded-xl border border-border p-4">
-                        <div className="flex gap-3">
-                          {product.media_url && (
-                            <div 
-                              className="w-16 h-16 rounded-lg bg-secondary flex-shrink-0 overflow-hidden cursor-pointer"
-                              onClick={() => {
-                                if (product.media_type === 'youtube' && product.media_url) {
-                                  handlePlayVideo(product.media_url, product.title);
-                                }
-                              }}
-                            >
-                              {product.media_type === 'youtube' ? (
-                                <div className="w-full h-full relative group">
+                      <Dialog key={product.id}>
+                        <DialogTrigger asChild>
+                          <button className="w-full rounded-xl border border-border p-4 text-left hover:bg-muted/50 transition-colors">
+                            <h4 className="font-medium text-sm line-clamp-1">{product.title}</h4>
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                              {product.description}
+                            </p>
+                            <span className="font-semibold text-primary text-sm mt-2 block">
+                              {product.price.toLocaleString()} {product.currency === 'RUB' ? '₽' : product.currency === 'USD' ? '$' : '€'}
+                            </span>
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="z-[200] max-w-md">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                              <Package className="h-5 w-5 text-primary" />
+                              {product.title}
+                            </DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            {product.media_url && (
+                              <div 
+                                className="w-full h-48 rounded-lg bg-secondary overflow-hidden cursor-pointer"
+                                onClick={() => {
+                                  if (product.media_type === 'youtube' && product.media_url) {
+                                    handlePlayVideo(product.media_url, product.title);
+                                  }
+                                }}
+                              >
+                                {product.media_type === 'youtube' ? (
+                                  <div className="w-full h-full relative group">
+                                    <img
+                                      src={getYoutubeThumbnail(product.media_url!) || ''}
+                                      alt={product.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                                      <Play className="h-10 w-10 text-white" fill="white" />
+                                    </div>
+                                  </div>
+                                ) : (
                                   <img
-                                    src={getYoutubeThumbnail(product.media_url!) || ''}
+                                    src={product.media_url}
                                     alt={product.title}
                                     className="w-full h-full object-cover"
                                   />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
-                                    <Play className="h-5 w-5 text-white" fill="white" />
-                                  </div>
-                                </div>
-                              ) : (
-                                <img
-                                  src={product.media_url}
-                                  alt={product.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              )}
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm line-clamp-1">{product.title}</h4>
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                )}
+                              </div>
+                            )}
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                               {product.description}
                             </p>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="font-semibold text-primary">
+                            <div className="flex items-center justify-between pt-2 border-t border-border">
+                              <span className="font-bold text-xl text-primary">
                                 {product.price.toLocaleString()} {product.currency === 'RUB' ? '₽' : product.currency === 'USD' ? '$' : '€'}
                               </span>
+                              {product.link && (
+                                <a
+                                  href={product.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                                >
+                                  <ShoppingBag className="h-4 w-4" />
+                                  Купить
+                                </a>
+                              )}
                             </div>
                           </div>
-                        </div>
-                        {product.link && (
-                          <a
-                            href={product.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-3 flex items-center justify-center gap-2 w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                          >
-                            <ShoppingBag className="h-4 w-4" />
-                            Купить
-                          </a>
-                        )}
-                      </div>
+                        </DialogContent>
+                      </Dialog>
                     ))}
                   </div>
                 )}
