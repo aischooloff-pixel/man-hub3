@@ -62,7 +62,38 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   }, [isOpen]);
 
   const handleSearch = async (query: string) => {
-    if (!query.trim() || query.trim().length < 2) return;
+    // If empty query, fetch all articles
+    if (!query.trim()) {
+      setLoading(true);
+      setSearched(true);
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('search-articles', {
+          body: { query: '', limit: 50 },
+        });
+        
+        if (!error && data?.articles) {
+          setResults(data.articles);
+        } else {
+          // Fallback: fetch from table directly
+          const { data: articles } = await supabase
+            .from('articles')
+            .select(`*, author:author_id(id, first_name, last_name, username, avatar_url, is_premium, reputation)`)
+            .eq('status', 'approved')
+            .order('created_at', { ascending: false })
+            .limit(50);
+          setResults(articles || []);
+        }
+      } catch (err) {
+        console.error('Search error:', err);
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    
+    if (query.trim().length < 2) return;
     
     const updated = [query, ...recentSearches.filter((s) => s !== query)].slice(0, 5);
     setRecentSearches(updated);

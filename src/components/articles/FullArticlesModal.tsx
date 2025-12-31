@@ -42,7 +42,14 @@ export function FullArticlesModal({
   }, [isOpen, initialArticles, initialCategory]);
 
   const handleSearch = async () => {
-    if (!searchQuery.trim() || searchQuery.trim().length < 2) return;
+    // If empty query, show all articles
+    if (!searchQuery.trim()) {
+      setSelectedCategory(null);
+      setArticles(initialArticles);
+      return;
+    }
+    
+    if (searchQuery.trim().length < 2) return;
     
     setLoading(true);
     try {
